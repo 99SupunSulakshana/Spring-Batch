@@ -1,9 +1,6 @@
 package com.example.spring_batch.config;
 
-import com.example.spring_batch.batch.BookAuthorProcessor;
-import com.example.spring_batch.batch.BookTitleProcessor;
-import com.example.spring_batch.batch.BookWriter;
-import com.example.spring_batch.batch.RestBookReader;
+import com.example.spring_batch.batch.*;
 import com.example.spring_batch.entity.Book;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
@@ -34,7 +31,8 @@ public class BatchConfig {
     public Job bookReaderJob(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
         return new JobBuilder("bookReadJob", jobRepository)
                 .incrementer(new RunIdIncrementer())
-                .start(chunkStep(jobRepository, transactionManager))
+//                .start(chunkStep(jobRepository, transactionManager))
+                .start(taskletStep(jobRepository, transactionManager))
                 .build();
     }
 
@@ -48,11 +46,16 @@ public class BatchConfig {
     }
 
     @Bean
-    @StepScope
-    public ItemReader<Book> restBookReader(){
-        return new RestBookReader("http://localhost:8080/book", new RestTemplate());
+    public Step taskletStep(JobRepository jobRepository, PlatformTransactionManager platformTransactionManager) {
+        return new StepBuilder("taskletStep", jobRepository)
+                .tasklet(new BookTasklet(), platformTransactionManager).build();
     }
 
+    @Bean
+    @StepScope
+    public ItemReader<Book> restBookReader() {
+        return new RestBookReader("http://localhost:8080/book", new RestTemplate());
+    }
 
     @Bean
     public ItemProcessor<Book, Book> processor() {
@@ -73,7 +76,7 @@ public class BatchConfig {
                 .name("bookReader")
                 .resource(new ClassPathResource("sample_books.csv"))
                 .delimited()
-                .names(new String[]{"title","author","year_of_publishing"})
+                .names(new String[]{"title", "author", "year_of_publishing"})
                 .fieldSetMapper(new BeanWrapperFieldSetMapper<>() {
                     {
                         setTargetType(Book.class);
