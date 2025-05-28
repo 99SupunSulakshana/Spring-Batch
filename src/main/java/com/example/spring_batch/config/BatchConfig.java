@@ -3,6 +3,7 @@ package com.example.spring_batch.config;
 import com.example.spring_batch.batch.BookAuthorProcessor;
 import com.example.spring_batch.batch.BookTitleProcessor;
 import com.example.spring_batch.batch.BookWriter;
+import com.example.spring_batch.batch.RestBookReader;
 import com.example.spring_batch.entity.Book;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
@@ -12,6 +13,7 @@ import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
@@ -21,6 +23,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 
@@ -38,11 +41,18 @@ public class BatchConfig {
     @Bean
     public Step chunkStep(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
         return new StepBuilder("bookReadStep", jobRepository).<Book, Book>chunk(10, transactionManager)
-                .reader(reader())
+                .reader(restBookReader())
                 .processor(processor())
                 .writer(writer())
                 .build();
     }
+
+    @Bean
+    @StepScope
+    public ItemReader<Book> restBookReader(){
+        return new RestBookReader("http://localhost:8080/book", new RestTemplate());
+    }
+
 
     @Bean
     public ItemProcessor<Book, Book> processor() {
